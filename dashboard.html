@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ApexFlow Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        ink:   '#0C1424',
+        panel: '#111C31',
+        line:  '#C9A227',
+        cream: '#F3EBDA',
+        muted: '#8B97AC',
+        coral: '#D9536A',
+        mint:  '#4FB286'
+      },
+      fontFamily: {
+        display: ['Fraunces', 'serif'],
+        body: ['Outfit', 'sans-serif']
+      }
+    }
+  }
+}
+</script>
+<style>
+  html { background: #0C1424; }
+  body { -webkit-tap-highlight-color: transparent; }
+  .hairline { border-color: rgba(201,162,39,0.35); }
+  .bubble-in  { border-radius: 16px 16px 16px 4px; }
+  .bubble-out { border-radius: 16px 16px 4px 16px; }
+  ::-webkit-scrollbar { width: 0; height: 0; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+  .fade-in { animation: fadeIn .25s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  button:focus-visible, input:focus-visible { outline: 2px solid #C9A227; outline-offset: 2px; }
+</style>
+</head>
+<body class="font-body bg-ink text-cream min-h-screen">
+
+<!-- ============ LOGIN ============ -->
+<div id="login" class="hidden fixed inset-0 z-50 bg-ink flex items-center justify-center px-6">
+  <div class="w-full max-w-sm">
+    <div class="border hairline p-8">
+      <p class="text-line text-xs tracking-[0.3em] uppercase mb-2">Apex Digital Picks</p>
+      <h1 class="font-display text-3xl mb-1">ApexFlow</h1>
+      <p class="text-muted text-sm mb-8">Client dashboard</p>
+      <label for="keyInput" class="block text-xs text-muted uppercase tracking-widest mb-2">Access key</label>
+      <input id="keyInput" type="password" autocomplete="current-password"
+        class="w-full bg-panel border hairline px-4 py-3 text-cream placeholder-muted mb-3"
+        placeholder="Paste your key">
+      <p id="loginError" class="hidden text-coral text-sm mb-3">That key was not accepted. Check it and try again.</p>
+      <button onclick="login()" class="w-full bg-line text-ink font-semibold py-3 active:opacity-80">
+        Open dashboard
+      </button>
+    </div>
+    <p class="text-muted text-xs mt-4 text-center">Your key was sent to you by Apex Digital Picks. Keep it private.</p>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="hidden max-w-lg mx-auto pb-24">
+
+  <!-- Header -->
+  <header class="px-5 pt-6 pb-4 border-b hairline flex items-end justify-between">
+    <div>
+      <p class="text-line text-[10px] tracking-[0.3em] uppercase">ApexFlow</p>
+      <h1 class="font-display text-2xl leading-tight" id="clientName">Dashboard</h1>
+    </div>
+    <span id="liveDot" class="flex items-center gap-1.5 text-xs text-muted">
+      <span class="w-2 h-2 rounded-full bg-mint"></span> Live
+    </span>
+  </header>
+
+  <!-- ===== QUEUE VIEW ===== -->
+  <section id="view-queue" class="px-5 pt-5">
+    <h2 class="text-sm text-muted uppercase tracking-widest mb-4">Waiting for your approval</h2>
+    <div id="queueList" class="space-y-4"></div>
+    <div id="queueEmpty" class="hidden border hairline p-8 text-center">
+      <p class="font-display text-xl mb-1">All clear</p>
+      <p class="text-muted text-sm">New replies will appear here for approval before they send.</p>
+    </div>
+  </section>
+
+  <!-- ===== CHATS VIEW ===== -->
+  <section id="view-chats" class="hidden px-5 pt-5">
+    <h2 class="text-sm text-muted uppercase tracking-widest mb-4">Conversations</h2>
+    <div id="convList" class="divide-y divide-panel"></div>
+    <div id="convEmpty" class="hidden border hairline p-8 text-center">
+      <p class="font-display text-xl mb-1">No conversations yet</p>
+      <p class="text-muted text-sm">When customers message you on WhatsApp, they show up here.</p>
+    </div>
+  </section>
+
+  <!-- ===== CHAT DETAIL ===== -->
+  <section id="view-chat" class="hidden">
+    <div class="px-5 py-3 border-b hairline flex items-center gap-3 sticky top-0 bg-ink z-10">
+      <button onclick="showView('chats')" class="text-line text-2xl leading-none px-1" aria-label="Back to conversations">&#8249;</button>
+      <div>
+        <p id="chatName" class="font-medium"></p>
+        <p id="chatPhone" class="text-xs text-muted"></p>
+      </div>
+    </div>
+    <div id="chatMessages" class="px-5 py-4 space-y-3"></div>
+  </section>
+
+  <!-- ===== STATS VIEW ===== -->
+  <section id="view-stats" class="hidden px-5 pt-5">
+    <h2 class="text-sm text-muted uppercase tracking-widest mb-4">This week at a glance</h2>
+    <div class="grid grid-cols-2 gap-3">
+      <div class="border hairline p-5">
+        <p id="statToday" class="font-display text-4xl text-line">0</p>
+        <p class="text-muted text-xs mt-1">Messages today</p>
+      </div>
+      <div class="border hairline p-5">
+        <p id="statPending" class="font-display text-4xl text-coral">0</p>
+        <p class="text-muted text-xs mt-1">Awaiting approval</p>
+      </div>
+      <div class="border hairline p-5">
+        <p id="statActive" class="font-display text-4xl">0</p>
+        <p class="text-muted text-xs mt-1">Active chats, 7 days</p>
+      </div>
+      <div class="border hairline p-5">
+        <p id="statApproved" class="font-display text-4xl text-mint">0</p>
+        <p class="text-muted text-xs mt-1">Replies sent, 7 days</p>
+      </div>
+      <div class="border hairline p-5">
+        <p id="statLeads" class="font-display text-4xl">0</p>
+        <p class="text-muted text-xs mt-1">Open leads</p>
+      </div>
+      <div class="border hairline p-5">
+        <p id="statWon" class="font-display text-4xl text-mint">0</p>
+        <p class="text-muted text-xs mt-1">Leads won, 7 days</p>
+      </div>
+      <div class="border hairline p-5 col-span-2 flex items-baseline justify-between">
+        <div>
+          <p id="statQuoteValue" class="font-display text-4xl text-line">R0</p>
+          <p class="text-muted text-xs mt-1">Quote value, 7 days</p>
+        </div>
+        <p class="text-muted text-sm"><span id="statQuotes">0</span> quotes sent</p>
+      </div>
+    </div>
+    <button onclick="logout()" class="mt-8 w-full border hairline text-muted py-3 text-sm active:opacity-70">
+      Sign out of this device
+    </button>
+  </section>
+
+  <!-- Bottom navigation -->
+  <nav class="fixed bottom-0 inset-x-0 bg-panel border-t hairline max-w-lg mx-auto">
+    <div class="grid grid-cols-3">
+      <button onclick="showView('queue')" id="tab-queue" class="py-4 text-sm relative">
+        Queue
+        <span id="queueBadge" class="hidden absolute top-2 ml-1 bg-coral text-cream text-[10px] px-1.5 py-0.5 rounded-full"></span>
+      </button>
+      <button onclick="showView('chats')" id="tab-chats" class="py-4 text-sm text-muted">Chats</button>
+      <button onclick="showView('stats')" id="tab-stats" class="py-4 text-sm text-muted">Stats</button>
+    </div>
+  </nav>
+</div>
+
+<script>
+const API = '/dashboard/api';
+let KEY = localStorage.getItem('apexflow_key') || '';
+let currentView = 'queue';
+let pollTimer = null;
+
+const $ = id => document.getElementById(id);
+const headers = () => ({ 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' });
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+
+function timeShort(ts) {
+  if (!ts) return '';
+  // Backend sends REAL unix seconds
+  const d = typeof ts === 'number' ? new Date(ts * 1000) : new Date(ts);
+  if (isNaN(d)) return esc(ts);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  return sameDay
+    ? d.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' });
+}
+
+// ---------- Auth ----------
+async function login() {
+  const key = $('keyInput').value.trim();
+  const res = await fetch(API + '/auth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key })
+  });
+  if (res.ok) {
+    KEY = key;
+    localStorage.setItem('apexflow_key', key);
+    $('login').classList.add('hidden');
+    $('app').classList.remove('hidden');
+    startPolling();
+  } else {
+    $('loginError').classList.remove('hidden');
+  }
+}
+
+function logout() {
+  localStorage.removeItem('apexflow_key');
+  location.reload();
+}
+
+// ---------- Views ----------
+function showView(name) {
+  currentView = name;
+  ['queue', 'chats', 'chat', 'stats'].forEach(v => $('view-' + v).classList.add('hidden'));
+  $('view-' + name).classList.remove('hidden');
+  ['queue', 'chats', 'stats'].forEach(t => {
+    const el = $('tab-' + t);
+    if (el) el.className = 'py-4 text-sm relative ' + (t === name ? 'text-cream' : 'text-muted');
+  });
+  if (name === 'queue') loadQueue();
+  if (name === 'chats') loadConversations();
+  if (name === 'stats') loadStats();
+}
+
+// ---------- Queue ----------
+async function loadQueue() {
+  const res = await fetch(API + '/queue', { headers: headers() });
+  if (res.status === 401) return logout();
+  const items = await res.json();
+
+  $('queueBadge').classList.toggle('hidden', items.length === 0);
+  $('queueBadge').textContent = items.length;
+  $('queueEmpty').classList.toggle('hidden', items.length > 0);
+
+  $('queueList').innerHTML = items.map(it => `
+    <div class="fade-in border hairline border-l-2 border-l-line bg-panel p-4" id="q-${it.id}">
+      <div class="flex justify-between items-baseline mb-2">
+        <p class="font-medium">${esc(it.contact_name || it.phone || 'Customer')}</p>
+        <p class="text-xs text-muted">${timeShort(it.created_at)}</p>
+      </div>
+      <p class="text-sm text-cream/90 whitespace-pre-wrap mb-4">${esc(it.draft)}</p>
+      <div class="grid grid-cols-2 gap-3">
+        <button onclick="decide('${it.id}','reject')"
+          class="border border-coral text-coral py-2.5 text-sm active:opacity-70">Reject</button>
+        <button onclick="decide('${it.id}','approve')"
+          class="bg-line text-ink font-semibold py-2.5 text-sm active:opacity-80">Approve and send</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function decide(id, action) {
+  const card = $('q-' + id);
+  card.style.opacity = '0.4';
+  const res = await fetch(`${API}/queue/${id}/${action}`, { method: 'POST', headers: headers() });
+  if (res.ok) {
+    card.remove();
+    loadQueue();
+    loadStats();
+  } else {
+    card.style.opacity = '1';
+  }
+}
+
+// ---------- Conversations ----------
+async function loadConversations() {
+  const res = await fetch(API + '/conversations', { headers: headers() });
+  if (res.status === 401) return logout();
+  const convs = await res.json();
+  $('convEmpty').classList.toggle('hidden', convs.length > 0);
+  $('convList').innerHTML = convs.map(c => `
+    <button onclick="openChat('${c.id}', '${esc(c.name || '')}', '${esc(c.phone || '')}')"
+      class="w-full text-left py-4 flex justify-between items-start gap-3 active:opacity-70">
+      <div class="min-w-0">
+        <p class="font-medium truncate">${esc(c.name || c.phone || 'Customer')}</p>
+        <p class="text-sm text-muted truncate">${esc(c.last_message || '')}</p>
+      </div>
+      <p class="text-xs text-muted whitespace-nowrap pt-1">${timeShort(c.last_activity)}</p>
+    </button>
+  `).join('');
+}
+
+async function openChat(id, name, phone) {
+  showView('chat');
+  $('chatName').textContent = name || phone || 'Customer';
+  $('chatPhone').textContent = name ? phone : '';
+  const res = await fetch(`${API}/conversations/${id}/messages`, { headers: headers() });
+  const msgs = await res.json();
+  $('chatMessages').innerHTML = msgs.map(m => `
+    <div class="flex ${m.direction === 'out' ? 'justify-end' : 'justify-start'}">
+      <div class="max-w-[80%] px-4 py-2.5 ${m.direction === 'out'
+          ? 'bubble-out bg-line/15 border hairline'
+          : 'bubble-in bg-panel'}">
+        <p class="text-sm whitespace-pre-wrap">${esc(m.body)}</p>
+        <p class="text-[10px] text-muted mt-1 text-right">${timeShort(m.created_at)}</p>
+      </div>
+    </div>
+  `).join('');
+  window.scrollTo(0, document.body.scrollHeight);
+}
+
+// ---------- Stats ----------
+async function loadStats() {
+  const res = await fetch(API + '/stats', { headers: headers() });
+  if (res.status === 401) return logout();
+  const s = await res.json();
+  $('statToday').textContent = s.messages_today;
+  $('statPending').textContent = s.pending_approvals;
+  $('statActive').textContent = s.active_chats_week;
+  $('statApproved').textContent = s.replies_sent_week;
+  $('statLeads').textContent = s.open_leads;
+  $('statWon').textContent = s.leads_won_week;
+  $('statQuotes').textContent = s.quotes_sent_week;
+  $('statQuoteValue').textContent = 'R' + Math.round(s.quote_value_week).toLocaleString('en-ZA');
+  $('queueBadge').classList.toggle('hidden', s.pending_approvals === 0);
+  $('queueBadge').textContent = s.pending_approvals;
+}
+
+// ---------- Polling ----------
+function startPolling() {
+  showView('queue');
+  loadStats();
+  pollTimer = setInterval(() => {
+    if (document.hidden) return;
+    if (currentView === 'queue') loadQueue();
+    loadStats();
+  }, 5000);
+}
+
+// ---------- Boot ----------
+(async function boot() {
+  if (!KEY) {
+    $('login').classList.remove('hidden');
+    return;
+  }
+  const res = await fetch(API + '/auth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: KEY })
+  });
+  if (res.ok) {
+    $('app').classList.remove('hidden');
+    startPolling();
+  } else {
+    localStorage.removeItem('apexflow_key');
+    $('login').classList.remove('hidden');
+  }
+})();
+
+$('keyInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+</script>
+</body>
+</html>
